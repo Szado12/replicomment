@@ -1,6 +1,7 @@
 package org.replicomment.extractor;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.comments.Comment;
 import org.replicomment.util.Checks;
 
 import java.util.List;
@@ -18,6 +19,12 @@ public final class DocumentedType {
 
   /** Fields of this documented type. */
   private final List<DocumentedField> documentedFields;
+
+  public List<Comment> getAllComments() {
+    return allComments;
+  }
+
+  private final List<com.github.javaparser.ast.comments.Comment> allComments;
   /**
    * Creates a new DocumentedType wrapping the given class and with the given constructors and
    * methods.
@@ -29,7 +36,7 @@ public final class DocumentedType {
    */
   DocumentedType(Class<?> documentedClass, ClassOrInterfaceDeclaration sourceClass,
                  List<DocumentedExecutable> documentedExecutables,
-                 List<DocumentedField> documentedFields) {
+                 List<DocumentedField> documentedFields, List<com.github.javaparser.ast.comments.Comment> allComments) {
     Checks.nonNullParameter(documentedClass, "documentedClass");
     Checks.nonNullParameter(documentedExecutables, "documentedExecutables");
 //    Checks.nonNullParameter(sourceClass, "sourceClass");
@@ -37,6 +44,7 @@ public final class DocumentedType {
     this.documentedClass = documentedClass;
     this.documentedExecutables = documentedExecutables;
     this.documentedFields = documentedFields;
+    this.allComments = allComments;
   }
 
   /**

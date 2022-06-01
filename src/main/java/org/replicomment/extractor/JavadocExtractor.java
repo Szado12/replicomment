@@ -77,7 +77,7 @@ public final class JavadocExtractor {
         getFileNameAndSimpleName(clazz, className);
     final String fullyQualName = fileNameAndSimpleName.getLeft();
     final String sourceFile =
-        sourcePath + File.separator + fullyQualName.replaceAll("\\.", File.separator) + ".java";
+        sourcePath + fullyQualName.replaceAll("\\.", "\\\\") + ".java";
     final String simpleName = fileNameAndSimpleName.getRight();
 
     ClassOrInterfaceDeclaration sourceClass = null;
@@ -88,9 +88,10 @@ public final class JavadocExtractor {
       e.printStackTrace();
     }
     if(sourceClass == null ){
-      return new DocumentedType(clazz, null, Collections.EMPTY_LIST, Collections.EMPTY_LIST);
+      return new DocumentedType(clazz, null, Collections.EMPTY_LIST, Collections.EMPTY_LIST, Collections.EMPTY_LIST);
     }else {
       final List<CallableDeclaration<?>> sourceExecutables = getExecutables(simpleName, sourceFile, sourceClass);
+      List<com.github.javaparser.ast.comments.Comment>  z = getAllComments(sourceClass);
       final List<FieldDeclaration> sourceFields = sourceClass.getFields();
 
       if (!sourceExecutables.isEmpty()) {
@@ -104,10 +105,14 @@ public final class JavadocExtractor {
         List<DocumentedField> documentedFields = new ArrayList<>(sourceFields.size());
         extractFieldsDoc(sourceFields, documentedFields);
         // Create the documented class.
-        return new DocumentedType(clazz, sourceClass, documentedExecutables, documentedFields);
+        return new DocumentedType(clazz, sourceClass, documentedExecutables, documentedFields, z);
       }
     }
     return null;
+  }
+
+  private List<com.github.javaparser.ast.comments.Comment> getAllComments(ClassOrInterfaceDeclaration sourceClass) {
+    return sourceClass.getAllContainedComments();
   }
 
   private void extractFieldsDoc(List<FieldDeclaration> sourceFields,
@@ -207,7 +212,7 @@ public final class JavadocExtractor {
   private List<String> getClassesInSamePackage(String className, String sourceFile) {
     // TODO Improve the code: this method should return all the available types in a given package.
     // TODO Replace string manipulation by using data structures
-    String packagePath = sourceFile.substring(0, sourceFile.lastIndexOf("/"));
+    String packagePath = sourceFile.substring(0, sourceFile.lastIndexOf("\\"));
     File folder = new File(packagePath);
     File[] listOfFiles = folder.listFiles();
     List<String> classesInPackage = new ArrayList<>();
