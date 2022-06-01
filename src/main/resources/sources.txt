@@ -1,5 +1,5 @@
 spring;repos\spring-5.0.2\spring-core\src\main\java\
-guava;repos\guava\src\
+guava;repos\guava-master\guava\src\
 elasticsearch;repos\elasticsearch-6.1.1\core\src\main\java\
 hadoop-common;repos\hadoop-rel-release-2.6.5\hadoop-common-project\hadoop-common\src\main\java\
 hadoop-hdfs;repos\hadoop-rel-release-2.6.5\hadoop-hdfs-project\hadoop-hdfs\src\main\java\
