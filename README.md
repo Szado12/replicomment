@@ -19,5 +19,9 @@ While running, the program will inform which project is now analyzed:
 [INFO] Analyzing repos\\lucene-solr-releases-lucene-solr-7.1.0\\solr\\core\\src\\java ...  
 [INFO] Analyzing repos\\RxJava-1.3.5\\src\\main\\java\\ ...  
 
-Results of analysis will be located in project directory. For each kind of analysis:
-(basic clones, hierarchy clones, cross clones, commented out code, single word comments) there will be created separate file.
+Results of analysis will be located in project directory. 
+For each kind of analysis(basic clones, hierarchy clones, cross clones, commented out code, single word comments) 
+there will be created separate file.
+
+## Example of output file
+![image](https://user-images.githubusercontent.com/51293021/171475665-e2708244-bad0-4f1a-a928-f57dae17361c.png)
