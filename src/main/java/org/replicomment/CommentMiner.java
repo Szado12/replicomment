@@ -25,7 +25,7 @@ public class CommentMiner {
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         final JavadocExtractor javadocExtractor = new JavadocExtractor();
         List<String> sourceFolders = FileUtils.readLines(new File(
-                CommentMiner.class.getResource("/tmp.txt").getPath()));
+                CommentMiner.class.getResource("/sources.txt").getPath()));
 
         int count = 0;
         for (String sourceFolder : sourceFolders) {
@@ -236,7 +236,7 @@ public class CommentMiner {
         for (File file : list) {
             String fileName = file.getAbsolutePath();
             String[] unnecessaryPrefix = fileName.split(path);
-            String className = unnecessaryPrefix[1].replaceAll("/", ".");
+            String className = unnecessaryPrefix[1].replaceAll("\\\\", ".");
             selectedClassNames[i++] = className.replace(".java", "");
         }
         return selectedClassNames;

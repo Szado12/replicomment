@@ -3,20 +3,15 @@ package org.replicomment.util;
 import org.apache.commons.io.FileUtils;
 import org.replicomment.JavadocClonesFinder;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class Reflection {
 
@@ -58,21 +53,18 @@ public class Reflection {
 
     final List<URL> urls = new ArrayList<>();
     try {
-
-      InputStream resourceAsStream = JavadocClonesFinder.class.getResourceAsStream("/jars.txt");
-      List<String> jars =
-              new BufferedReader(new InputStreamReader(resourceAsStream,
-                      StandardCharsets.UTF_8)).lines().collect(Collectors.toList());
-
-
-//      List<String> jars = FileUtils.readLines(new File(
-//              JavadocClonesFinder.class
-//                      .getResource("/jars.txt").getPath()));
+      List<String> jars = FileUtils.readLines(new File(
+              JavadocClonesFinder.class
+                      .getResource("/jars.txt").getPath()));
+      jars.replaceAll(x-> new File(x).getAbsolutePath());
       for(String jar : jars){
-        urls.add(new URL("file:"+jar));
+        urls.add(new URL("file:///"+jar));
       }
     } catch (MalformedURLException e) {
+    } catch (IOException e) {
+      e.printStackTrace();
     }
+
     final URLClassLoader loader = new URLClassLoader(urls.toArray(new URL[urls.size()]), null);
     try {
       return loader.loadClass(className);

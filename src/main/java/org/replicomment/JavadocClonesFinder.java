@@ -7,23 +7,19 @@ import org.replicomment.extractor.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.RegexFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.replicomment.util.CommentedOutCodeChecker;
 import org.replicomment.util.Reflection;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.Writer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.stream.Collectors;
+
 
 public class JavadocClonesFinder {
 
@@ -36,43 +32,36 @@ public class JavadocClonesFinder {
     private static FileWriter fieldCrossCloneWriter;
     private static FileWriter fieldCloneWriter;
     private static FileWriter fieldHieCloneWriter;
+    private static FileWriter commentedOutWriter;
+    private static FileWriter singleWordOutWriter;
+
 
     private enum CONTEXT {
         INNER, CROSS, HIERARCHY, FIELD
     }
 
     public static void main(String[] args) throws IOException {
-        InputStream resourceAsStream = JavadocClonesFinder.class.getResourceAsStream("/sources.txt");
-        List<String> sourceFolderNames =
-                new BufferedReader(new InputStreamReader(resourceAsStream,
-                        StandardCharsets.UTF_8)).lines().collect(Collectors.toList());
+        List<String> sourceFolderNames = FileUtils.readLines(new File(
+              JavadocClonesFinder.class.getResource("/sources.txt").getPath()));
 
-//        List<String> sourceFolderNames = FileUtils.readLines(new FileWritere(
-//                JavadocClonesFinder.class.getResource("/sources.txt").getPath()));
-
-        Map<String, String> sourceFolders = new HashMap<>();
-
+        sourceFolderNames.replaceAll(x -> x.replace("\\","\\\\"));
         for (String source : sourceFolderNames) {
-            String[] tokens = source.split(":");
-            sourceFolders.put(tokens[0], tokens[1]);
-        }
+            String[] tokens = source.split(";");
 
-        for (String sourceFolderID : sourceFolders.keySet()) {
             // Collect all sources
-            String sourceFolder = sourceFolders.get(sourceFolderID);
-
-            System.out.println("[INFO] Looking for subjects into " + sourceFolderID + " ...");
 
             Collection<File> list = FileUtils.listFiles(
                     new File(
-                            sourceFolder),
+                            tokens[1]),
                     new RegexFileFilter("(.*).java"),
                     TrueFileFilter.INSTANCE);
             // Collect all the class names in source folder
-            List<String> selectedClassNames = getClassesInFolder(list, sourceFolder);
+            List<String> selectedClassNames = getClassesInFolder(list, tokens[1]);
 
-            System.out.println("[INFO] Analyzing " + sourceFolder + " ...");
-            analyzeClones(sourceFolder, sourceFolderID, selectedClassNames);
+            System.out.println("[INFO] Analyzing " + tokens[1] + " ...");
+
+            String sourceId = tokens[0];
+            analyzeComments(tokens[1], sourceId, selectedClassNames);
             documentedTypes = new HashMap<>();
         }
         System.out.println("[INFO] Terminating now ...");
@@ -124,9 +113,10 @@ public class JavadocClonesFinder {
      * @param sourcesFolder      folder containing the Java sources to analyze
      * @param selectedClassNames fully qualified names of the Java classes to be analyzed
      */
-    private static void analyzeClones(String sourcesFolder, String sourceFolderID,
-                                      List<String> selectedClassNames) throws IOException {
+    private static void analyzeComments(String sourcesFolder, String sourceFolderID,
+                                        List<String> selectedClassNames) throws IOException {
 
+        CommentedOutCodeChecker commentedOutCodeChecker = new CommentedOutCodeChecker();
         prepareResultsFiles(sourceFolderID);
         int classIndex = 0;
         for (String className : selectedClassNames) {
@@ -163,6 +153,11 @@ public class JavadocClonesFinder {
                         // FIXME      (how difficult is that?)
                     }
 //                    System.out.println("\nIn class " + className + ":");
+
+                    //Check for commented out code
+                    Map<String, List<CommentedOutCodeResult>> commentedOutCodeResult = commentedOutCodeChecker.CheckForCodeInComment(documentedType.getAllComments(),sourcesFolder, className,true);
+                    addDataToOutputFile(commentedOutWriter,commentedOutCodeResult.get("commentedOutCodeResult"));
+                    addDataToOutputFile(singleWordOutWriter,commentedOutCodeResult.get("singleWordComments"));
 
                     // Retrieve methods in current class.
                     List<DocumentedExecutable> localExecutables =
@@ -239,18 +234,17 @@ public class JavadocClonesFinder {
     }
 
     private static void prepareResultsFiles(String sourceFolderID) throws IOException {
-        File dirPrefix = new File("output/"+sourceFolderID);
-        if (!dirPrefix.exists()){
-            dirPrefix.mkdirs();
-        }
         // Prepare results header
-        localCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_" + sourceFolderID + ".csv");
-        hierarchyCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_h_" + sourceFolderID + ".csv");
-        crossCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_cf_" + sourceFolderID + ".csv");
+        localCloneWriter = new FileWriter("2020_JavadocClones_" + sourceFolderID + ".csv");
+        hierarchyCloneWriter = new FileWriter("2020_JavadocClones_h_" + sourceFolderID + ".csv");
+        crossCloneWriter = new FileWriter("2020_JavadocClones_cf_" + sourceFolderID + ".csv");
 
-        fieldCrossCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_fields_cf_" + sourceFolderID + ".csv");
-        fieldHieCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_fields_h_" + sourceFolderID + ".csv");
-        fieldCloneWriter = new FileWriter(dirPrefix + "/" + "2020_JavadocClones_fields_" + sourceFolderID + ".csv");
+        fieldCrossCloneWriter = new FileWriter("2020_JavadocClones_fields_cf_" + sourceFolderID + ".csv");
+        fieldHieCloneWriter = new FileWriter("2020_JavadocClones_fields_h_" + sourceFolderID + ".csv");
+        fieldCloneWriter = new FileWriter("2020_JavadocClones_fields_" + sourceFolderID + ".csv");
+
+        commentedOutWriter = new FileWriter("CommentedOutCode_"+sourceFolderID+".csv");
+        singleWordOutWriter = new FileWriter("SingleWordComments_"+sourceFolderID+".csv");
 
         prepareCSVOutput(localCloneWriter, false, false, false);
         prepareCSVOutput(hierarchyCloneWriter, true, false, false);
@@ -259,6 +253,9 @@ public class JavadocClonesFinder {
         prepareCSVOutput(fieldCloneWriter, false, false, true);
         prepareCSVOutput(fieldHieCloneWriter, true, false, true);
         prepareCSVOutput(fieldCrossCloneWriter, false, true, true);
+
+        prepareOutputFileForCommentedOutCode(commentedOutWriter);
+        prepareOutputFileForCommentedOutCode(singleWordOutWriter);
     }
 
     private static void closeOutputFiles() throws IOException {
@@ -276,6 +273,12 @@ public class JavadocClonesFinder {
         fieldCrossCloneWriter.close();
         fieldHieCloneWriter.flush();
         fieldHieCloneWriter.close();
+
+        commentedOutWriter.flush();
+        commentedOutWriter.close();
+
+        singleWordOutWriter.flush();
+        singleWordOutWriter.close();
     }
 
     private static void methodLevelClonesSearch(FileWriter writer, String className, String externalClass,
@@ -373,7 +376,7 @@ public class JavadocClonesFinder {
                 continue;
             } else {
                 // TODO in case we include external classes, too: && firstName.equals(secondName)?
-                boolean legit = firstName.equals(secondName);
+                boolean legit = firstType.equals(secondType);
                 if (SHOW_LEGIT || !legit) {
                     writer.append(className);
                     writer.append(';');
@@ -550,55 +553,6 @@ public class JavadocClonesFinder {
             }
         }
     }
-
-//    /**
-//     * Finds clones in subtypes by means of reflection. A pretty expensive approach, not advised.
-//     *
-//     * @param ewriter the external clones writer
-//     * @param javadocExtractor javadoc extractor to extract source comments
-//     * @param sourcesFolder the folders from which to grab sources
-//     * @param selectedClassNames class names we are looking for in sources
-//     * @param className the class for which we need subtypes
-//     * @param first the first documented executable for which to fetch clones
-//     * @throws IOException if cannot read reflection prefixes file
-//     */
-//    private static void exploreReflectionHierarchy(FileWriter ewriter, JavadocExtractor javadocExtractor,
-//                                                   String sourcesFolder, List<String> selectedClassNames,
-//                                                   String className, DocumentedExecutable first) throws IOException {
-//        List<String> reflectionPrefixList = FileUtils.readLines(new File(
-//                JavadocClonesFinder.class.getResource("/reflections.txt").getPath()));
-//
-//        Map<String,String> reflectionPrefixes = new HashMap<>();
-//
-//        for(String source : reflectionPrefixList){
-//            String[] tokens = source.split(":");
-//            reflectionPrefixes.put(tokens[0], tokens[1]);
-//        }
-//
-//        for(String refPrefix : reflectionPrefixes.keySet()) {
-//            Reflections reflections = new Reflections(refPrefix);
-//            Set<Class<?>> subTypes = (Set<Class<?>>) reflections.getSubTypesOf(first.getDeclaringClass());
-//            if (!subTypes.isEmpty()) {
-//                // We found a bunch of subtypes. Time to retrieve their doc.
-//                for (Class<?> subType : subTypes) {
-//                    String externalClass = subType.getName();
-//                    if (selectedClassNames.contains(externalClass)) {
-//                        // Found subtype source.
-//                        DocumentedType documentedSubType = javadocExtractor.extract(
-//                                externalClass, sourcesFolder);
-//                        if (documentedSubType != null) {
-//                            List<DocumentedExecutable> externalExecutables =
-//                                    documentedSubType.getDocumentedExecutables();
-//                            for (int j = 0; j < externalExecutables.size(); j++) {
-//                                methodLevelClonesSearch(ewriter, className, externalClass, externalExecutables, j, first);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-
 
     private static boolean isOverriding(String firstName, String secondName, String externalClass) {
         if (!"".equals(externalClass)) {
@@ -999,7 +953,6 @@ public class JavadocClonesFinder {
             return false;
         } else return firstType.equals(secondType);
     }
-
     /**
      * From a list of files in path, finds the fully qualified names of Java classes.
      *
@@ -1015,10 +968,31 @@ public class JavadocClonesFinder {
             }
             String fileName = file.getAbsolutePath();
             String[] unnecessaryPrefix = fileName.split(path);
-            String className = StringUtils.replace(unnecessaryPrefix[1], "/", ".");
+            String className = StringUtils.replace(unnecessaryPrefix[1], "\\", ".");
+
             selectedClassNames.add(className.replace(".java", ""));
         }
         return selectedClassNames;
 
+    }
+
+    private static void prepareOutputFileForCommentedOutCode(Writer writer){
+        try {
+            writer.append("Class Name`");
+            writer.append("Comment Content`");
+            writer.append("Lines`");
+            writer.append("Path \n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private static void addDataToOutputFile(Writer writer, List<CommentedOutCodeResult> results){
+        for (CommentedOutCodeResult result: results) {
+            try {
+                writer.append(result.toString());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
